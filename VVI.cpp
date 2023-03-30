@@ -1,4 +1,5 @@
 #include <iostream> 
+#include <chrono>
 #define PACE 0
 #define VB 1
 #define VRP 2
@@ -6,18 +7,27 @@
 
 using namespace std;
 
+// Function to get time in milliseconds
+uint64_t millis(){
+    using namespace chrono;
+    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+}
 // Function prototypes
-class hardwareIO; 
+class hardwareSys; 
 void processPaceState(char &state);
 void processVBState(char &state);
 void processVRPState(char &state);
 void processLRLOnlyState(char &state);
 
 // Global class to simulate system io
-hardwareIO io;
+static hardwareSys sys;
 
 int main(){
-    char pState;
+    // Setup:
+    char pState = LRLONLY;
+    sys.setLRLTimer();
+
+    // Loop
     while(true){
         switch (pState){
             case PACE:
@@ -41,39 +51,39 @@ int main(){
 
 void processPaceState(char &state){
     // if pace timer is off, start it
-    if (!io.VPaceTimer_ison){
-        io.VPaceOn();
-        io.setVPaceTimer(); // also sets VPaceTimer_ison to true
+    if (!sys.VPaceTimerActive){
+        sys.VPaceOn();
+        sys.setVPaceTimer(); // also sets VPaceTimerActive to true
         return;   
     }
     // if pace timer expires, reset and change state
-    if (io.VPaceTimer_expired()){
-        io.VPaceOff();
-        io.clearVPaceTimer();
+    if (sys.VPaceTimer_expired()){
+        sys.VPaceOff();
+        sys.clearVPaceTimer();
         state = VB;
         return;
     }
     return;
 }
 void processVBState(char &state){
-    if (!io.VBTimer_ison){
-        io.setVBTimer();
+    if (!sys.VBTimerActive){
+        sys.setVBTimer();
         return;
     }
-    if (io.VBTimer_expired()){
-        io.clearVBTimer();
+    if (sys.VBTimer_expired()){
+        sys.clearVBTimer();
         state = VRP;
         return;
     }
     return;
 }
 void processVRPState(char &state){
-    if (!io.VRPTimer_ison){
-        io.setVRPTimer();
+    if (!sys.VRPTimerActive){
+        sys.setVRPTimer();
         return;
     }
-    if (io.VRPTimer_expired()){
-        io.clearVRPTimer();
+    if (sys.VRPTimer_expired()){
+        sys.clearVRPTimer();
         state = LRLONLY;
         return;
     }
@@ -81,64 +91,119 @@ void processVRPState(char &state){
 
 }
 void processLRLOnlyState(char &state){
-    if (io.LRL_timer_expired()){
-        io.clearLRLTimer();
-        io.setLRLTimer();
+    if (sys.LRL_timer_expired()){
+        sys.clearLRLTimer();
+        sys.setLRLTimer();
 
         state = PACE;
         return;
     }
-    if (io.Ventricular_Sensed()){
-        io.clearLRLTimer();
-        io.setLRLTimer();
+    if (sys.Ventricular_Sensed()){
+        sys.clearLRLTimer();
+        sys.setLRLTimer();
         state = VB;
         return;
     }
     return;
 }
 
-
-class hardwareIO{
+class hardwareSys{
     private:
-        bool VSensorActive = true;
+        const long LRLInt = 1000;
+        const long VPaceInt = 1000;
+        const long VBInt = 1000;
+        const long VRPInt = 1000;
+
+        bool IO_VSensorActive = true;
+        bool IO_PaceActive = false;
+
+        bool LRLTimerActive = false;
+
+        uint64_t LRLTimerEndValue;
+        uint64_t VPaceTimerEndValue;
+        uint64_t VBTimerEndValue;    
+        uint64_t VRPTimerEndValue;
+
     public:
-        hardwareIO(){
-        }
-        bool VPaceTimer_ison = false;
-        bool VBTimer_ison = false;
-        bool VRPTimer_ison = false;
+        hardwareSys(){}
+        bool VPaceTimerActive = false;
+        bool VBTimerActive = false;
+        bool VRPTimerActive = false;
 
         // LRL Functions:
-        bool LRL_timer_expired(){}
-        void clearLRLTimer(){}
-        void setLRLTimer(){}
+        bool LRL_timer_expired(){
+            if(this->LRLTimerActive && millis() >= LRLTimerEndValue)
+                return true;
+            else
+                return false;
+        }
+        void clearLRLTimer(){
+            this->LRLTimerActive = false;
+        }
+        void setLRLTimer(){
+            this->LRLTimerActive = true;
+            this->LRLTimerEndValue = millis() + LRLInt;
+        }
 
         // Sensing Functions:
-        bool Ventricular_Sensed(){}
+        bool Ventricular_Sensed(){
+            // Some IO event sensing
+        }
 
         // VPace Functions: 
-        void VPaceOn(){}
-        void VPaceOff(){}
-        void setVPaceTimer(){
-            this->VPaceTimer_ison = true;
+        void VPaceOn(){
+            // FIRST disable sensor to protect it
+            this->IO_VSensorActive = false;
+            this->IO_PaceActive = true;
         }
-        bool VPaceTimer_expired(){}
+        void VPaceOff(){
+            this->IO_PaceActive = false;
+        }
+        void setVPaceTimer(){
+            this->VPaceTimerActive = true;
+            this->VPaceTimerEndValue = millis() + VPaceInt;
+        }
+        bool VPaceTimer_expired(){
+            // V Pace timer has to be active and reach the end value to expire
+            if(this->VPaceTimerActive = true && millis() >= VPaceTimerEndValue)
+                return true;
+            else
+                return false;
+        }
         void clearVPaceTimer(){
-            this->VPaceTimer_ison = false;
+            this->VPaceTimerActive = false;
         }
 
         // VB Functions:
         void setVBTimer(){
-            this->VSensorActive = false;
+            this->VBTimerActive = true;
+            this->IO_VSensorActive = false;
+            this->VBTimerEndValue = millis() + VBInt;
         }
         void clearVBTimer(){
-            this->VSensorActive = true;
+            this->VBTimerActive = false;
+            this->IO_VSensorActive = true;
         }
-        bool VBTimer_expired(){}
+        bool VBTimer_expired(){
+            if(this->VBTimerActive && millis() >= VBTimerEndValue)
+                return true;
+            else   
+                return false;
+        }
 
         // VRP Functions:
-        void setVRPTimer(){}
-        void clearVRPTimer(){}
-        bool VRPTimer_expired(){}
+        void setVRPTimer(){
+            this->VRPTimerActive = true;
+            this->VRPTimerEndValue = millis() + VRPInt;
+        }
+        void clearVRPTimer(){
+            this->VRPTimerActive = false;
+        }
+        bool VRPTimer_expired(){
+            if (this->VRPTimerActive && millis() >= VRPTimerEndValue)
+                return true;
+            else
+                return false;
+        }
 
 };
