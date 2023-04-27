@@ -29,19 +29,16 @@ def animate(i):
     global y
     x = np.linspace(0, 2, length)
     y = np.roll(y, -1)
-    if Afib_mode:
-        y[-1] = 0.03* np.random.randn()
-    else:
-        y[-1] = 0.01 * np.random.randn() + next(heart.rhythm)
+    y[-1] = next(heart.rhythm)
     line.set_data(x, y)
     return line,
 
 def setAfib_mode(label):
-    global Afib_mode
+    global heart
     if label == 'AFib':
-        Afib_mode = True
-    else:
-        Afib_mode = False
+        heart.set_rhythm('AFib')
+    elif label == 'NSR':
+        heart.set_rhythm('NSR')
 
 
 radio.on_clicked(setAfib_mode)
