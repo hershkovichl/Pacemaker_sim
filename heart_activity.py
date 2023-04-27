@@ -18,13 +18,10 @@ class heart:
 
 class NSR:
     def __init__(self, scale=1):
-        # self.p_wave = np.array([0.01,0.05,0.08,.1,0.08,0.01])
         self.scale = scale
-        # self.PR_int = np.array([0,0,0,0])
-        # self.QRS = np.array([-0.1,0.2,0.5,0.2,-0.3,-0.04])
-        # self.QT_int = np.zeros(6)
-        # self.t_wave = np.array([0.01, 0.05, 0.1, 0.2, 0.25, 0.2, 0.1, 0.05,0.01])
-        self.cycle = cycle([*self.p_wave(), *self.PR_int(), *self.QRS(), *self.QT_int(), *self.t_wave(), *self.TP_int()])
+        self.cycle = cycle([self.p_wave, self.PR_int, self.QRS, self.QT_int, self.t_wave, self.TP_int])
+        self.queue = []
+        self.i = 0
 
     def p_wave(self, scale=1):
         t = np.linspace(0,np.pi, 10 * scale * self.scale)
@@ -54,7 +51,13 @@ class NSR:
         return self
     
     def __next__(self):
-        return next(self.cycle) + 0.01 * np.random.randn()
+        if len(self.queue) == self.i:
+            nextfunc = next(self.cycle)
+            self.queue = nextfunc()
+            self.i = 0
+        retVal = self.queue[self.i]
+        self.i += 1
+        return retVal + 0.01 * np.random.randn()
 
 class AFib:
     def __init__(self, scale=1):
@@ -77,7 +80,7 @@ class AFib:
         up2 = np.linspace(-0.3, 0, 2*scale*self.scale)[1:]
         return np.concatenate([d1,up1,d2,up2])
         
-    def QT_int(self, scale=0.5):
+    def QT_int(self, scale=1):
         return np.zeros(8*scale*self.scale)
     
     def t_wave(self, scale=1):
