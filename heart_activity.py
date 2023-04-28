@@ -18,6 +18,7 @@ class Heart:
     def _set_rhythm(self):
         label = self.newrhythmlabel
         self.rhythmName = self.newrhythmlabel
+        self.newrhythm = False
         if label == 'NSR':
             self.rhythm = NSR(self)
         elif label == 'AFib':
@@ -39,9 +40,9 @@ class Heart:
     def __next__(self):
         # Pass state to pacemaker, then pacemaker decides
         if self.newrhythm:
-            if self.rhythm.ecg_state == PWAVE:
+            if self.rhythm.A_state == DEPOLARIZING or self.rhythm.A_state == FIBRILLATION:
                 self._set_rhythm()
-                
+
         if self.pacemaker is not None:
             V_pace = self.pacemaker.run()
         return next(self.rhythm)
@@ -186,6 +187,8 @@ class AV_Block(Rhythm):
         self.AV_i = 0
 
     def QRST(self, scale=1):
+        self.V_state = DEPOLARIZING
+        self.ecg_state = QRST
         d1 = np.linspace(0,-0.1, 2*scale*self.scale)
         up1 = np.linspace(-0.1, 0.6, 3*scale*self.scale)[1:]
         d2 = np.linspace(0.6, -0.3, 3*scale*self.scale)[1:]
@@ -196,13 +199,22 @@ class AV_Block(Rhythm):
         return np.concatenate([d1,up1,d2,up2, qt_int, t_wave])
 
     def p_wave(self, scale=1):
+        self.A_state = DEPOLARIZING
+        if self.ecg_state != QRST:
+            self.ecg_state = PWAVE
         t = np.linspace(0,np.pi, 10 * scale * self.scale)
         return 0.08* np.sin(t)
     
     def SA_refractory(self, scale = 1):
+        self.A_state = POLARIZED
+        if self.ecg_state != QRST:
+            self.ecg_state = TPSEG
         return np.zeros(40 * scale)
     
     def AV_refractory(self, scale = 1):
+        self.V_state = POLARIZED
+        if self.ecg_state != PWAVE:
+            self.ecg_state = TPSEG
         return np.zeros(47 * scale)
 
     def __next__(self):
