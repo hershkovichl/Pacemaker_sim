@@ -10,11 +10,16 @@ fig = plt.figure()
 ax = plt.axes(xlim=(0, 2), ylim=(-1, 2))
 ax.set_ylabel('mv')
 fig.subplots_adjust(left=0.3)
-line, = ax.plot([], [], lw=2)
+line, = ax.plot([], [], lw=2, c = 'darkblue')
 ax2 = fig.add_axes([0.05, 0.5, 0.18, 0.30])
 ax2.set_title('Choose Mode')
 ax3 = fig.add_axes([0.05, 0.2, 0.18, 0.2])
 ax3.set_title('Pacemaker')
+# Code for updating current mode:
+# ax4 = fig.add_axes([0.05, 0.15, 0.18, 0.05])
+# ax4.set_xticks([])
+# ax4.set_yticks([])
+# state_text = ax4.text(0.05,(ax4.get_ylim()[1] - ax4.get_ylim()[0])/2, 'Current State: ', va='center')
 radio = RadioButtons(ax2, ['NSR', 'AFib', 'AV Block', 'AFib + Block'], active=0, activecolor='r')
 radio2 = RadioButtons(ax3, ['Mode Switching','VVI', 'Off'], active = 2, activecolor='r')
 fig.set_size_inches(10,4)
@@ -22,16 +27,13 @@ def init():
     line.set_data([], [])
     return line,
 
-# Axes styling
+# Axes styling, uncomment to add style:
 from matplotlib.ticker import AutoMinorLocator
 ax.xaxis.set_minor_locator(AutoMinorLocator(5))
 ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 
-# ax.set_ylim(-amplitude_ecg, amplitude_ecg)
-# ax.set_xlim(0, secs)
-
-ax.grid(which='major', linestyle='-', linewidth='0.5', color='red')
-ax.grid(which='minor', linestyle='-', linewidth='0.5', color=(1, 0.7, 0.7))
+ax.grid(which='major', linestyle='-', linewidth='0.5', color='red', alpha=0.1)
+ax.grid(which='minor', linestyle='-', linewidth='0.5', color=(1, 0.7, 0.7), alpha=0.1)
 
 # Initialize heart object for electrophysiology simulation
 heart = heart_activity.Heart()
