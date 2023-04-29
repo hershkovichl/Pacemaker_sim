@@ -6,16 +6,16 @@ class ModeSwitching:
         self.heart = heart
         self.sys = HardwareSystem(heart)
         self.VVI = VVI(self.sys)
-        self.DDD = DDD(self.sys)
+        self.VDD = VDD(self.sys)
         self.time_of_last_AFib = 0
-        self.AFib_Check_Period = 3000
+        self.AFib_Check_Period = 2000
 
     def check_for_AFib(self):
         if self.heart.rhythm.A_state == AFIB:
             self.time_of_last_AFib = time()
 
     def recent_AFib(self):
-        if (time() - self.time_of_last_AFib) * 1000 >= self.AFib_Check_Period:
+        if (time() - self.time_of_last_AFib) * 1000 <= self.AFib_Check_Period:
             return True
         else:
             return False
@@ -26,7 +26,7 @@ class ModeSwitching:
         if self.recent_AFib():
             self.VVI.run()
         else:
-            self.DDD.run()
+            self.VDD.run()
         return self.sys.IO_PaceActive
 
 PACE = 0
@@ -35,7 +35,7 @@ VRP = 2
 LRLONLY = 3
 
 class VVI:
-    '''VVI and DDD classes store the logic within the state diagram, and when to switch around'''
+    '''VVI and VDD classes store the logic within the state diagram, and when to switch around'''
     def __init__(self, hardwareSystem=None):
         self.pState = VB
         if hardwareSystem is not None:
@@ -113,7 +113,7 @@ class VVI:
             return
         return
 
-class DDD(VVI):
+class VDD(VVI):
     def __init__(self, hardwareSystem=None):
         self.pState = VB
         if hardwareSystem is not None:
@@ -124,12 +124,15 @@ class DDD(VVI):
         self.sys.setVBTimer()
         self.pastState = VB
 
+    def run(self):
+        print("VDD Running")
+
 
 class HardwareSystem():
     '''Class that represents the physical systems and hardware of the pacemaker device
     If the pacing mode program is the software, this is the firmware/hardware/OS
     
-    The pacing mode classes (VVI and DDD) store the logic for the state diagram, this class
+    The pacing mode classes (VVI and VDD) store the logic for the state diagram, this class
         handles the steps that occur in each state'''
     def __init__(self, heart):
         # Save "Heart" object for IO
