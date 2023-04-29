@@ -49,10 +49,10 @@ def setAfib_mode(label):
         heart.set_rhythm('AFib_AV_Block')
 
 def setPace(label):
-    if label == 'on':
+    if label == 'On':
         pacemaker = Pacemaker.ModeSwitching(heart)
         heart.set_pacemaker(pacemaker)
-    if label == 'off':
+    if label == 'Off':
         heart.remove_pacemaker()
 
 radio.on_clicked(setAfib_mode)
