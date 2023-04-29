@@ -29,6 +29,7 @@ class Heart:
             self.rhythm = AFib_AV_Block(self)
 
     def set_pacemaker(self, pacemaker):
+        print('Set pacemaker')
         self.pacemaker = pacemaker
 
     def remove_pacemaker(self):
@@ -38,13 +39,17 @@ class Heart:
         return self.rhythm
     
     def __next__(self):
-        # Pass state to pacemaker, then pacemaker decides
+        # Logic for smoother switching between states:
         if self.newrhythm:
             if self.rhythm.A_state == DEPOLARIZING or self.rhythm.A_state == FIBRILLATION:
                 self._set_rhythm()
 
+        # Pass state to pacemaker, then pacemaker decides
         if self.pacemaker is not None:
             V_pace = self.pacemaker.run()
+            if V_pace:
+                print('Pace')
+                self.rhythm.V_pace(self.pacemaker.sys.pacing_voltage)
         return next(self.rhythm)
 
 # Defined states for Atria and Ventricles
@@ -180,13 +185,13 @@ class AV_Block(Rhythm):
         super().__init__(heart=heart)
         self.scale = scale
         self.SA_cycle = cycle([self.p_wave, self.SA_refractory])
-        self.AV_cycle = cycle([self.QRST, self.AV_refractory])
+        self.AV_cycle = cycle([self.QRS, self.QT_int, self.t_wave, self.AV_refractory])
         self.SA_queue = []
         self.AV_queue = []
         self.SA_i = 0
         self.AV_i = 0
 
-    def QRST(self, scale=1):
+    def QRS(self, scale=1):
         self.V_state = DEPOLARIZING
         self.ecg_state = QRST
         d1 = np.linspace(0,-0.1, 2*scale*self.scale)
@@ -194,9 +199,16 @@ class AV_Block(Rhythm):
         d2 = np.linspace(0.6, -0.3, 3*scale*self.scale)[1:]
         up2 = np.linspace(-0.3, 0, 2*scale*self.scale)[1:]
 
-        qt_int = np.zeros(8*scale*self.scale)
-        t_wave = 0.16*np.sin(np.linspace(0,np.pi, 15 * scale * self.scale))
-        return np.concatenate([d1,up1,d2,up2, qt_int, t_wave])
+        return np.concatenate([d1,up1,d2,up2])
+
+    def QT_int(self, scale=1):
+        self.V_state = REFRACTORY
+        return np.zeros(8*scale*self.scale)
+    
+    def t_wave(self, scale=1):
+        self.V_state = REPOLARIZING
+        t = np.linspace(0,np.pi, 15 * scale * self.scale)
+        return 0.16*np.sin(t)
 
     def p_wave(self, scale=1):
         self.A_state = DEPOLARIZING
@@ -215,7 +227,15 @@ class AV_Block(Rhythm):
         self.V_state = POLARIZED
         if self.ecg_state != PWAVE:
             self.ecg_state = TPSEG
-        return np.zeros(47 * scale)
+        return np.zeros(85 * scale)
+    
+    def V_pace(self, pacing_voltage):
+        # if self.V_state == POLARIZED:
+        nextfunc = next(self.AV_cycle)
+        while nextfunc != self.QRS:
+            nextfunc = next(self.AV_cycle)
+        self.AV_queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
+        self.AV_i = 0
 
     def __next__(self):
         if len(self.SA_queue) == self.SA_i:
@@ -242,8 +262,16 @@ class AFib_AV_Block(AFib):
         self.V_state = POLARIZED
         self.ecg_state = AFIB
         self.A_state = FIBRILLATION
-        t = np.zeros(47 * scale * self.scale)
+        t = np.zeros(85 * scale * self.scale)
         return t
+    
+    def V_pace(self, pacing_voltage):
+        # if self.V_state == POLARIZED:
+        nextfunc = next(self.cycle)
+        while nextfunc != self.QRS:
+            nextfunc = next(self.cycle)
+        self.queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
+        self.i = 0
 
 if __name__ == '__main__':
     pass
