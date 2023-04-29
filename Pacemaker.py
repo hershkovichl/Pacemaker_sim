@@ -1,16 +1,32 @@
 from time import time
-from heart_activity import POLARIZED, DEPOLARIZING, REFRACTORY, REPOLARIZING, FIBRILLATION
+from heart_activity import POLARIZED, DEPOLARIZING, REFRACTORY, REPOLARIZING, FIBRILLATION, AFIB
 
 class ModeSwitching:
     def __init__(self, heart):
         self.heart = heart
         self.sys = HardwareSystem(heart)
-        self.VVI = VVI()
-        self.DDD = DDD()
+        self.VVI = VVI(self.sys)
+        self.DDD = DDD(self.sys)
+        self.time_of_last_AFib = 0
+        self.AFib_Check_Period = 3000
+
+    def check_for_AFib(self):
+        if self.heart.rhythm.A_state == AFIB:
+            self.time_of_last_AFib = time()
+
+    def recent_AFib(self):
+        if (time() - self.time_of_last_AFib) * 1000 >= self.AFib_Check_Period:
+            return True
+        else:
+            return False
 
     def run(self):
         # Determine which state it's in
-        self.VVI.run()
+        self.check_for_AFib()
+        if self.recent_AFib():
+            self.VVI.run()
+        else:
+            self.DDD.run()
         return self.sys.IO_PaceActive
 
 PACE = 0
@@ -21,24 +37,33 @@ LRLONLY = 3
 class VVI:
     '''VVI and DDD classes store the logic within the state diagram, and when to switch around'''
     def __init__(self, hardwareSystem=None):
-        self.pState = LRLONLY
-        self.sys.setLRLTimer()
+        self.pState = VB
         if hardwareSystem is not None:
             self.sys = hardwareSystem
         else:
             self.sys = HardwareSystem()
+        
+        self.sys.setVBTimer()
+        self.pastState = VB
 
     ### In this case, run() acts the same as the while loop in the example C code
     ### because run() runs on every frame 
     def run(self):
+        if self.pState != self.pastState:
+            self.pastState = self.pState
+            print(self.pState)
         if self.pState == PACE:
             self.processPaceState()
+            return
         elif self.pState == VB:
             self.processVBState()
+            return
         elif self.pState == VRP:
             self.processVRPState()
+            return
         elif self.pState == LRLONLY:
             self.processLRLOnlyState()
+            return
         else:
             raise Exception("Invalid State")
         
@@ -71,6 +96,7 @@ class VVI:
         if self.sys.VRPTimer_expired():
             self.sys.clearVRPTimer()
             self.pState = LRLONLY
+            # self.sys.setLRLTimer()
             return
         return
 
@@ -88,8 +114,15 @@ class VVI:
         return
 
 class DDD(VVI):
-    def __init__(self):
-        pass
+    def __init__(self, hardwareSystem=None):
+        self.pState = VB
+        if hardwareSystem is not None:
+            self.sys = hardwareSystem
+        else:
+            self.sys = HardwareSystem()
+        
+        self.sys.setVBTimer()
+        self.pastState = VB
 
 
 class HardwareSystem():
@@ -102,11 +135,14 @@ class HardwareSystem():
         # Save "Heart" object for IO
         self.heart=heart
         
+        # Pacing voltage (in millivots)
+        self.pacing_voltage = 0.5
+
         # Initialize parameters about the IO and interval timings
         self.LRLInt = 1000
-        self.VPaceInt = 1000
-        self.VBInt = 1000
-        self.VRPInt = 1000
+        self.VPaceInt = 10
+        self.VBInt = 100
+        self.VRPInt = 200
 
         self.IO_VSensorActive = True
         self.IO_PaceActive = False
@@ -136,6 +172,7 @@ class HardwareSystem():
         self.LRLTimerActive = False
 
     def setLRLTimer(self):
+        print('LRL Timer Set')
         self.LRLTimerActive = True
         self.LRLTimerEndValue = self.current_time() + self.LRLInt
 
@@ -199,4 +236,7 @@ class HardwareSystem():
         else:
             return False
 
-        
+
+if __name__ == '__main__':
+    from heart_activity import Heart
+    heart = Heart()
