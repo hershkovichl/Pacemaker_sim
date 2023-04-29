@@ -9,6 +9,7 @@ class ModeSwitching:
         self.VDD = VDD(self.sys)
         self.time_of_last_AFib = 0
         self.AFib_Check_Period = 2000
+        self.Mode = ''
 
     def check_for_AFib(self):
         if self.heart.rhythm.A_state == AFIB:
@@ -24,15 +25,18 @@ class ModeSwitching:
         # Determine which state it's in
         self.check_for_AFib()
         if self.recent_AFib():
+            self.Mode = 'VVI'
             self.VVI.run()
         else:
             self.VDD.run()
+            self.Mode = 'VDD'
         return self.sys.IO_PaceActive
 
 PACE = 0
 VB = 1
 VRP = 2
 LRLONLY = 3
+LRLANDPSYNC = 4
 
 class VVI:
     '''VVI and VDD classes store the logic within the state diagram, and when to switch around'''
@@ -45,6 +49,7 @@ class VVI:
         
         self.sys.setVBTimer()
         self.pastState = VB
+        self.Mode = 'VVI'
 
     ### In this case, run() acts the same as the while loop in the example C code
     ### because run() runs on every frame 
@@ -54,18 +59,15 @@ class VVI:
             print(self.pState)
         if self.pState == PACE:
             self.processPaceState()
-            return
         elif self.pState == VB:
             self.processVBState()
-            return
         elif self.pState == VRP:
             self.processVRPState()
-            return
         elif self.pState == LRLONLY:
             self.processLRLOnlyState()
-            return
         else:
             raise Exception("Invalid State")
+        return self.sys.IO_PaceActive
         
     def processPaceState(self):
         if not self.sys.VPaceTimerActive:
@@ -123,9 +125,50 @@ class VDD(VVI):
         
         self.sys.setVBTimer()
         self.pastState = VB
+        self.Mode='VDD'
 
     def run(self):
-        print("VDD Running")
+        if self.pState != self.pastState:
+            self.pastState = self.pState
+            print(self.pState)
+        if self.pState == PACE:
+            self.processPaceState()
+            return
+        elif self.pState == VB:
+            self.processVBState()
+            return
+        elif self.pState == VRP:
+            self.processVRPState()
+            return
+        elif self.pState == LRLONLY:
+            self.processLRLandPSyncState()
+            return
+        else:
+            raise Exception("Invalid State")
+        
+    def processLRLandPSyncState(self):
+        self.processLRLOnlyState()
+        # If pacing due to LRL, skip the P Sync step
+        if self.pState == PACE:
+            self.sys.clearAVITimer()
+            return
+        self.processPSyncState()
+
+    def processPSyncState(self):
+        if self.sys.Atrial_Sensed() and not self.sys.AVITimerActive:
+            self.sys.setAVITimer()
+
+        if self.sys.AVITimerExpired():
+            self.sys.clearAVITimer()
+            self.sys.clearLRLTimer()
+            self.sys.setLRLTimer()
+            print("AVI Timer Expired")
+            self.pState = PACE
+
+        if self.sys.Ventricular_Sensed():
+            self.sys.clearAVITimer() # processLRLOnlyState() will take care of the LRL timer
+            self.pState = VB
+            return
 
 
 class HardwareSystem():
@@ -147,9 +190,14 @@ class HardwareSystem():
         self.VBInt = 100
         self.VRPInt = 200
 
+        self.AVIInt = 200
+        self.PVARP_Int = 250 # Post-ventricular atrial refractory period
+
         self.IO_VSensorActive = True
+        self.IO_ASensorActive = True
         self.IO_PaceActive = False
         self.LRLTimerActive = False
+        self.AVITimerActive = False
 
         self.LRLTimerEndValue = None
         self.VPaceTimerEndValue = None
@@ -179,6 +227,20 @@ class HardwareSystem():
         self.LRLTimerActive = True
         self.LRLTimerEndValue = self.current_time() + self.LRLInt
 
+    ##### Atrioventricular Interval Functions (p wave sync): #####
+    def AVITimerExpired(self):
+        if self.AVITimerActive and self.current_time() >= self.AVITimerEndValue:
+            return True
+        else:
+            return False
+
+    def clearAVITimer(self):
+        self.AVITimerActive = False
+
+    def setAVITimer(self):
+        self.AVITimerActive = True
+        self.AVITimerEndValue = self.current_time() + self.AVIInt
+
     ##### Sensing Functions: #####
     def Ventricular_Sensed(self):
         # First, make sure IO Ventricular Sensor is on
@@ -187,9 +249,18 @@ class HardwareSystem():
                 return True
         else:
             return False
+        
+    def Atrial_Sensed(self):
+        # First, make sure IO Atrial Sensor is on
+        if self.IO_ASensorActive:
+            if self.heart.rhythm.A_state == DEPOLARIZING:
+                return True
+        else:
+            return False
 
     ##### VPace Functions #####
     def VPaceOn(self):
+        self.IO_ASensorActive = False
         self.IO_VSensorActive = False
         self.IO_PaceActive = True
 
@@ -218,6 +289,7 @@ class HardwareSystem():
     def clearVBTimer(self):
         self.VBTimerActive = False
         self.IO_VSensorActive = True
+        self.IO_ASensorActive = True
 
     def VBTimer_expired(self):
         if self.VBTimerActive and self.current_time() >= self.VBTimerEndValue:
