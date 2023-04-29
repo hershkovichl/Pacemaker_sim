@@ -16,11 +16,22 @@ ax2.set_title('Choose Mode')
 ax3 = fig.add_axes([0.05, 0.2, 0.18, 0.2])
 ax3.set_title('Pacemaker')
 radio = RadioButtons(ax2, ['NSR', 'AFib', 'AV Block', 'AFib + Block'], active=0, activecolor='r')
-radio2 = RadioButtons(ax3, ['On', 'Off'], active = 1, activecolor='r')
+radio2 = RadioButtons(ax3, ['Mode Switching','VVI', 'Off'], active = 2, activecolor='r')
 fig.set_size_inches(10,4)
 def init():
     line.set_data([], [])
     return line,
+
+# Axes styling
+from matplotlib.ticker import AutoMinorLocator
+ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+
+# ax.set_ylim(-amplitude_ecg, amplitude_ecg)
+# ax.set_xlim(0, secs)
+
+ax.grid(which='major', linestyle='-', linewidth='0.5', color='red')
+ax.grid(which='minor', linestyle='-', linewidth='0.5', color=(1, 0.7, 0.7))
 
 # Initialize heart object for electrophysiology simulation
 heart = heart_activity.Heart()
@@ -48,10 +59,12 @@ def setAfib_mode(label):
     elif label == 'AFib + Block':
         heart.set_rhythm('AFib_AV_Block')
 
+pacemaker = Pacemaker.ModeSwitching(heart)
 def setPace(label):
-    if label == 'On':
-        pacemaker = Pacemaker.ModeSwitching(heart)
+    if label == 'Mode Switching':
         heart.set_pacemaker(pacemaker)
+    if label == 'VVI':
+        heart.set_pacemaker(pacemaker.VVI)
     if label == 'Off':
         heart.remove_pacemaker()
 
