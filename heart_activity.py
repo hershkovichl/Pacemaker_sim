@@ -73,6 +73,9 @@ class Rhythm:
         self.V_state = POLARIZED
         self.ecg_state = TPSEG
 
+    def V_pace(self, pacing_voltage):
+        return
+
 class NSR(Rhythm):
     def __init__(self, heart, scale=1):
         super().__init__(heart=heart)
@@ -203,7 +206,7 @@ class AV_Block(Rhythm):
 
     def QT_int(self, scale=1):
         self.V_state = REFRACTORY
-        return np.zeros(8*scale*self.scale)
+        return np.zeros(2*scale*self.scale)
     
     def t_wave(self, scale=1):
         self.V_state = REPOLARIZING
@@ -221,21 +224,21 @@ class AV_Block(Rhythm):
         self.A_state = POLARIZED
         if self.ecg_state != QRST:
             self.ecg_state = TPSEG
-        return np.zeros(40 * scale)
+        return np.zeros(50 * scale)
     
     def AV_refractory(self, scale = 1):
         self.V_state = POLARIZED
         if self.ecg_state != PWAVE:
             self.ecg_state = TPSEG
-        return np.zeros(85 * scale)
+        return np.zeros(90 * scale)
     
     def V_pace(self, pacing_voltage):
-        # if self.V_state == POLARIZED:
-        nextfunc = next(self.AV_cycle)
-        while nextfunc != self.QRS:
+        if self.V_state == POLARIZED:
             nextfunc = next(self.AV_cycle)
-        self.AV_queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
-        self.AV_i = 0
+            while nextfunc != self.QRS:
+                nextfunc = next(self.AV_cycle)
+            self.AV_queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
+            self.AV_i = 0
 
     def __next__(self):
         if len(self.SA_queue) == self.SA_i:
@@ -266,12 +269,12 @@ class AFib_AV_Block(AFib):
         return t
     
     def V_pace(self, pacing_voltage):
-        # if self.V_state == POLARIZED:
-        nextfunc = next(self.cycle)
-        while nextfunc != self.QRS:
+        if self.V_state == POLARIZED:
             nextfunc = next(self.cycle)
-        self.queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
-        self.i = 0
+            while nextfunc != self.QRS:
+                nextfunc = next(self.cycle)
+            self.queue = np.concatenate([[pacing_voltage, 0], nextfunc()])
+            self.i = 0
 
 if __name__ == '__main__':
     pass
