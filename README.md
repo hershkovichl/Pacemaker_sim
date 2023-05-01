@@ -1,5 +1,12 @@
 # Pacemaker_sim
 
+## Introduction
+The code in this repo simultaneously simulates a pacemaker and a heart's electrical activity, and plots their outputs and interactions live.
+
+Example output with a heart that has 3rd degree AV nodal block, and the pacemaker synchronizing with p waves:   
+![image](https://user-images.githubusercontent.com/62310279/235480995-7cceaf16-31e6-43fb-8a70-59d3ba2d624b.png)
+
+
 ## Background
 The complications associated with 3rd degree AV nodal block include bradycardia and reduced ability to adapt heart rate when needed. While this condition is treatable with a pacemaker, contingent algorithms need to be in place for paroxysmal arrhythmias like tachycardia or fibrillation which may occur acutely, and which may exacerbate cardiac issues if the pacemaker does not accommodate for them. One algorithm for dealing with acute paroxysmal tachycardias is a mode-switching pacemaker. Under this paradigm, the pacemaker contains the algorithm for two separate pacing modes and can appropriately detect when to automatically switch between the modes. This project contains the simulation of a heart which is apt for a mode-switching pacemaker, and the development of the algorithm for a mode-switching pacemaker to correctly pace the heart. The simulated heart can acutely switch between normal sinus rhythm, atrial fibrillation, 3rd degree AV nodal block, and 3rd degree AV nodal block with atrial fibrillation. The two pacing modes chosen to address this malfunctioning heart include a VDD mode for pace-matching the ventricles to the atria, and a VVI mode for holding the ventricles at a constant rate when the atria are undergoing fibrillation. A concurrent live simulation and graphing program show the appropriate pacing of the ventricles when required, no pacing of the ventricles when not required, and appropriate mode-switching at the onset/offset of atrial fibrillation. 
 
