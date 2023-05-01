@@ -28,3 +28,5 @@ ECG_tracing.py contains all code for plotting the output of the heart and pacema
 heart_activity.py contains the Heart object, and its necessary Rhythm objects for defining SA node and AV node behavior
 
 Pacemaker.py contains the code for a VVI pacemaker, VDD pacemaker, and a ModeSwitching pacemaker which automatically switches between the two. The HardwareSystem class handles the I/O that is universal to all 3 pacing modes.
+
+VVI.cpp contains the original code for this project, which was the initial template for the VVI class in Pacemaker.py
