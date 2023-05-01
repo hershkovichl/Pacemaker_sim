@@ -1,6 +1,5 @@
 import numpy as np
 from itertools import cycle
-from queue import Queue
 
 class Heart:
     def __init__(self):
