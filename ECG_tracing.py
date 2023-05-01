@@ -32,7 +32,7 @@ from matplotlib.ticker import AutoMinorLocator
 ax.xaxis.set_minor_locator(AutoMinorLocator(5))
 ax.yaxis.set_minor_locator(AutoMinorLocator(5))
 
-ax.grid(which='major', linestyle='-', linewidth='0.5', color='red', alpha=0.1)
+ax.grid(which='major', linestyle='-', linewidth='1', color='red', alpha=0.1)
 ax.grid(which='minor', linestyle='-', linewidth='0.5', color=(1, 0.7, 0.7), alpha=0.1)
 
 # Initialize heart object for electrophysiology simulation
