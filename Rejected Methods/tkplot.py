@@ -9,15 +9,23 @@ import numpy as np
 import tkinter as tk
 from tkinter import ttk
 
+import time
+
 LARGE_FONT = ("Verdana", 12)
-style.use('ggplot')
+style.use('fast')
 
 fig, ax = plt.subplots()
 
 xs =[0]
 ys = [0]
 
+time_exec = 0
+time_start = 0
 def animate(i, xs, ys):
+    global time_exec
+    global time_start
+    time_exec = time.perf_counter() - time_start
+    time_start = time.perf_counter() 
     y = np.random.randint(0,5)
     ys.append(y)
     xs.append(xs[-1] + 1)
@@ -25,7 +33,12 @@ def animate(i, xs, ys):
     xs = xs[-20:]
     ys = ys[-20:]
 
+    fps = 1/time_exec
+
     ax.clear()
+    # ax.relim()
+    ax.text(xs[0], 7, s="FPS: %.1f"%fps)
+    ax.set_ylim((-1,10))
     ax.plot(xs, ys)
 
 
@@ -79,5 +92,5 @@ class GraphPage(tk.Frame):
 
 
 app = TestGUI()
-ani = animation.FuncAnimation(fig, animate, fargs = (xs, ys), interval = 50, cache_frame_data=False)
+ani = animation.FuncAnimation(fig, animate, frames=100, fargs = (xs, ys), interval = 20)
 app.mainloop()
